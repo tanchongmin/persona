@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Persona Chat</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="setup-panel collapsed" aria-label="Character info">
+        <div class="setup-header">
+          <button id="setupToggle" class="setup-toggle" type="button" aria-expanded="false">
+            Character Info
+          </button>
+          <fieldset class="model-selector" aria-label="Model">
+            <legend>Model</legend>
+            <label>
+              <input type="radio" name="model" value="gemma-4" checked />
+              <span>Gemma 4</span>
+            </label>
+            <label>
+              <input type="radio" name="model" value="gpt-5-mini" />
+              <span>GPT-5-mini</span>
+            </label>
+            <label>
+              <input type="radio" name="model" value="gpt-5-nano" />
+              <span>GPT-5-nano</span>
+            </label>
+          </fieldset>
+          <label class="toggle-field switch-field" title="Show narration">
+            <span>Narration</span>
+            <input id="narrationToggle" type="checkbox" checked />
+            <span class="toggle-slider" aria-hidden="true"></span>
+          </label>
+        </div>
+        <div id="setupContent" class="setup-content">
+          <div class="scenario-field">
+            <label class="field">
+              <span>Scenario</span>
+              <textarea id="scenario" rows="3" placeholder="Describe the current story setup, setting, conflict, or premise."></textarea>
+            </label>
+            <button id="generatePersonas" type="button">Generate Personas</button>
+          </div>
+
+          <div class="persona-section">
+            <div class="section-header">
+              <span>Personas</span>
+              <button id="addPersona" class="secondary icon-button" type="button" title="Add custom persona" aria-label="Add custom persona">+</button>
+            </div>
+            <div id="personas" class="persona-list"></div>
+          </div>
+
+          <div class="user-grid">
+            <label class="field">
+              <span>User Name</span>
+              <input id="userName" type="text" placeholder="User name" />
+            </label>
+            <label class="field">
+              <span>User Description</span>
+              <textarea id="userPersona" rows="3" placeholder="Describe the user chatting with the persona."></textarea>
+            </label>
+            <label class="field">
+              <span>Summary</span>
+              <textarea id="summary" rows="5" placeholder="Summarize what has happened so far and the current story state."></textarea>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <section class="chat-panel" aria-label="Conversation">
+        <div id="messages" class="messages"></div>
+        <div class="turn-controls" aria-label="Turn controls">
+          <div id="tokenUsageBar" class="token-usage-bar" hidden></div>
+          <button id="fastForward" class="secondary" type="button" hidden>Fast Forward</button>
+          <button id="backtrack" class="secondary" type="button" disabled>Backtrack</button>
+        </div>
+        <form id="turnForm" class="composer">
+          <div id="imagePreview" class="image-preview" hidden></div>
+          <textarea id="turnInput" rows="2" placeholder="Message the persona..."></textarea>
+          <label class="secondary icon-button attach-button" title="Attach image" aria-label="Attach image">
+            +
+            <input id="imageInput" type="file" accept="image/*" multiple />
+          </label>
+          <button id="takeAction" type="button" class="secondary">Take Action</button>
+          <button id="send" type="submit">Send</button>
+        </form>
+      </section>
+    </main>
+    <div id="imageModal" class="image-modal" hidden>
+      <button id="imageModalClose" class="image-modal-close" type="button" aria-label="Close image">x</button>
+      <img id="imageModalImg" alt="" />
+    </div>
+    <div id="tokenModal" class="token-modal" hidden>
+      <section class="token-modal-panel" aria-label="Token details">
+        <div class="token-modal-header">
+          <span id="tokenModalTitle">Token Details</span>
+          <button id="tokenModalClose" class="secondary icon-button" type="button" aria-label="Close token details">x</button>
+        </div>
+        <div class="token-modal-grid">
+          <label>
+            <span>Input</span>
+            <textarea id="tokenInputText" readonly></textarea>
+          </label>
+          <label>
+            <span>Output</span>
+            <textarea id="tokenOutputText" readonly></textarea>
+          </label>
+        </div>
+      </section>
+    </div>
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>
