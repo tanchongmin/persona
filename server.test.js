@@ -12,6 +12,7 @@ import {
   handleOpenAIStreamEvent,
   imageAttachmentsForLlmContext,
   makeMessage,
+  messagesAndSummaryFromTaggedSequence,
   messagesFromTaggedSequence,
   normalizeModelSelection,
   openaiEmptyResponseMessage,
@@ -128,17 +129,33 @@ test("fully unprefixed model output is parsed as narration", () => {
   assert.equal(messages[0].content, "plain setup with no prefixes");
 });
 
-test("unbolded persona and summary labels are parsed as narration", () => {
-  const parsed = messagesFromTaggedSequence(
+test("unbolded persona labels are parsed as narration while unbolded summary is hidden state", () => {
+  const result = messagesAndSummaryFromTaggedSequence(
     "Mara: Hello there.\nSummary: John and Mara spoke.",
     "turn-unbolded-labels",
     "Mara"
   );
 
-  assert.equal(parsed.length, 1);
-  assert.equal(parsed[0].role, "narrator");
-  assert.equal(parsed[0].kind, "narration");
-  assert.equal(parsed[0].content, "Mara: Hello there.\nSummary: John and Mara spoke.");
+  assert.equal(result.messages.length, 1);
+  assert.equal(result.messages[0].role, "narrator");
+  assert.equal(result.messages[0].kind, "narration");
+  assert.equal(result.messages[0].content, "Mara: Hello there.");
+  assert.equal(result.summary, "John and Mara spoke.");
+});
+
+test("unbolded narration labels are repaired as narration", () => {
+  const messages = messagesFromTaggedSequence(
+    "Narration: Mara looks at you.\n**Mara**: I saw that.",
+    "turn-unbolded-narration",
+    "Mara"
+  );
+
+  assert.equal(messages.length, 2);
+  assert.equal(messages[0].role, "narrator");
+  assert.equal(messages[0].kind, "narration");
+  assert.equal(messages[0].content, "Mara looks at you.");
+  assert.equal(messages[1].role, "persona");
+  assert.equal(messages[1].content, "I saw that.");
 });
 
 test("unknown model labels are parsed as narration", () => {
@@ -401,6 +418,19 @@ test("streaming parser extracts formatted summary lines", () => {
   assert.equal(markdownResult.messages.length, 1);
   assert.equal(markdownResult.messages[0].content, "Good.");
   assert.equal(markdownResult.summary, "John and Mara agree to continue.");
+
+  const unboldedStreamer = createTaggedSegmentStreamer({
+    res: { write() {} },
+    turnId: "turn-stream-unbolded-summary",
+    personas: [{ id: "p1", name: "Mara" }]
+  });
+
+  unboldedStreamer.feed("**Mara**: Fine.\nSummary: John and Mara pause.");
+  const unboldedResult = unboldedStreamer.finish();
+
+  assert.equal(unboldedResult.messages.length, 1);
+  assert.equal(unboldedResult.messages[0].content, "Fine.");
+  assert.equal(unboldedResult.summary, "John and Mara pause.");
 });
 
 test("streaming parser closes the final prefixed line on finish", () => {

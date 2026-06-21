@@ -567,7 +567,7 @@ function buildPersonaReplyPrompt({ personas, personaName, persona, scenario = ""
     "Not every persona needs to respond. Include only personas who are directly addressed, affected, nearby, or naturally motivated to react. Let irrelevant personas stay silent.",
     `Use bold persona-name prefixes for spoken dialogue, and use this format exactly:\n${personaLineGuide}`,
     "Use **Narration**: for prose when possible. If a model line does not start with **Narration**:, a bold available persona-name prefix, or a **Summary**: line, it will be treated as visible narration. Use **Summary**: only for the hidden current-state summary.",
-    "Only **Summary**: lines are hidden from the chat. **Narration**:, unprefixed prose, unbolded persona labels, unknown labels, and any other non-persona output are shown as narration.",
+    "Only **Summary**: lines are hidden from the chat. If the model accidentally writes Summary: without bolding, it is still treated as hidden summary. **Narration**: lines are shown as narration; if the model accidentally writes Narration: without bolding, it is still treated as narration. Unprefixed prose, unbolded persona labels, unknown labels, and any other non-persona output are shown as narration.",
     `Never write a User:, ${userName}:, <user>:, or any other user-prefixed line in the generated response. Do not speak, act, answer, decide, or continue the conversation on ${userName}'s behalf.`,
     userPronounInstruction,
     "After all visible narration and persona dialogue for this turn, return exactly one **Summary**: line. The summary line is not dialogue or narration and must not repeat the visible reply verbatim.",
@@ -1240,7 +1240,7 @@ function messagesAndSummaryFromTaggedSequence(sequence, turnId, personaNameOrPer
 
 function extractSummaryLine(text) {
   const value = typeof text === "string" ? text : "";
-  const pattern = /(?:^|\n)[ \t]*(?:[-*]\s*)?\*\*Summary\*\*\s*:[ \t]*(.*?)(?=\n|$)/gi;
+  const pattern = /(?:^|\n)[ \t]*(?:[-*]\s*)?(?:\*\*Summary\*\*|Summary)\s*:[ \t]*(.*?)(?=\n|$)/gi;
   let match;
   let summary = "";
   while ((match = pattern.exec(value)) !== null) {
@@ -1293,6 +1293,10 @@ function findLinePrefix(value, personas = []) {
 
 function linePrefixForLabel(label, personas = []) {
   const normalizedLabel = clean(label).replace(/^[-*]\s+/, "");
+  const unboldedLabel = normalizedLabel.toLowerCase();
+  if (unboldedLabel === "narration") return { type: "narration" };
+  if (unboldedLabel === "summary") return { type: "summary" };
+
   const boldMatch = normalizedLabel.match(/^\*\*(.*?)\*\*$/);
   if (!boldMatch) return null;
 
@@ -1310,7 +1314,7 @@ function trailingLinePrefixCandidateLength(value, personas = []) {
   if (!suffix || suffix.includes(":")) return 0;
   const trimmed = suffix.trimStart().toLowerCase();
   if (!trimmed) return suffix.length;
-  const labels = ["**narration**", "**summary**", ...(personas || []).map((persona) => `**${clean(persona.name).toLowerCase()}**`)];
+  const labels = ["narration", "summary", "**narration**", "**summary**", ...(personas || []).map((persona) => `**${clean(persona.name).toLowerCase()}**`)];
   return labels.some((label) => label.startsWith(trimmed)) ? suffix.length : 0;
 }
 
@@ -1325,6 +1329,7 @@ export {
   handleOpenAIStreamEvent,
   imageAttachmentsForLlmContext,
   makeMessage,
+  messagesAndSummaryFromTaggedSequence,
   messagesFromTaggedSequence,
   normalizeModelSelection,
   openaiEmptyResponseMessage,
