@@ -123,6 +123,20 @@ GEMMA_PYTHON=/path/to/python3 npm run dev
 
 The app keeps a rolling summary and recent messages so each turn can continue the scene without sending the full history forever.
 
+## Visual Walkthrough
+
+Start by opening **Character Info**, choosing a model, and writing the scenario. Click **Generate Personas** to create scenario-specific characters, then review or edit the persona name, gender, description, user fields, and summary before chatting.
+
+![Persona creation screen](images/persona_creation.png)
+
+During chat, user messages appear on the right, persona replies appear on the left, and narration appears as prose between dialogue bubbles when narration is enabled. Use **Backtrack** to undo the latest turn.
+
+![Chat screen with narration](images/chat_2.png)
+
+Use the `+` button beside the composer to attach images. The current model receives the uploaded image when it supports image input, and the image remains visible in the conversation context.
+
+![Chat screen with an uploaded image](images/chat_1.png)
+
 ## Useful Environment Variables
 
 | Variable | Default | Purpose |
