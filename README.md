@@ -2,6 +2,20 @@
 
 Persona Chat is a local roleplay chat app. It serves a browser UI with Node.js, streams turns over Server-Sent Events, and can use either a local quantized Gemma model through `llama-cpp-python` or OpenAI Responses API models.
 
+## Visual Walkthrough
+
+By default, you can start chatting with a friendly companion. User messages appear on the right, persona replies appear on the left, and narration appears as prose between dialogue bubbles when narration is enabled. Use **Backtrack** to undo the latest turn.
+
+![Chat screen with narration](images/chat_2.png)
+
+Open **Character Info**, choose a model, and write a scenario when you want a custom setup. Click **Generate Personas** to create scenario-specific characters, then review or edit the persona name, gender, description, user fields, and summary before chatting.
+
+![Persona creation screen](images/persona_creation.png)
+
+Use the `+` button beside the composer to attach images. The current model receives the uploaded image when it supports image input, and the image remains visible in the conversation context.
+
+![Chat screen with an uploaded image](images/chat_1.png)
+
 ## What You Can Do
 
 - Describe a scenario and generate matching personas.
@@ -122,20 +136,6 @@ GEMMA_PYTHON=/path/to/python3 npm run dev
 7. Use **Take Action** when the input should be treated as an action or state change instead of dialogue.
 
 The app keeps a rolling summary and recent messages so each turn can continue the scene without sending the full history forever.
-
-## Visual Walkthrough
-
-Start by opening **Character Info**, choosing a model, and writing the scenario. Click **Generate Personas** to create scenario-specific characters, then review or edit the persona name, gender, description, user fields, and summary before chatting.
-
-![Persona creation screen](images/persona_creation.png)
-
-During chat, user messages appear on the right, persona replies appear on the left, and narration appears as prose between dialogue bubbles when narration is enabled. Use **Backtrack** to undo the latest turn.
-
-![Chat screen with narration](images/chat_2.png)
-
-Use the `+` button beside the composer to attach images. The current model receives the uploaded image when it supports image input, and the image remains visible in the conversation context.
-
-![Chat screen with an uploaded image](images/chat_1.png)
 
 ## Useful Environment Variables
 
