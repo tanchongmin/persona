@@ -566,11 +566,11 @@ function buildPersonaReplyPrompt({ personas, personaName, persona, scenario = ""
     "If the persona is performing an action, describe it in detail till completion. Do not describe any action that has already happened in the past.",
     "Not every persona needs to respond. Include only personas who are directly addressed, affected, nearby, or naturally motivated to react. Let irrelevant personas stay silent.",
     `Use bold persona-name prefixes for spoken dialogue, and use this format exactly:\n${personaLineGuide}`,
-    "Use **Narration**: for prose when possible. If a model line does not start with **Narration**:, a bold available persona-name prefix, or a **Summary**: line, it will be treated as visible narration. Use **Summary**: only for the hidden current-state summary.",
-    "Only **Summary**: lines are hidden from the chat. If the model accidentally writes Summary: without bolding, it is still treated as hidden summary. **Narration**: lines are shown as narration; if the model accidentally writes Narration: without bolding, it is still treated as narration. Unprefixed prose, unbolded persona labels, unknown labels, and any other non-persona output are shown as narration.",
+    "Use **Narration**: for prose when possible. Bold every output tag/prefix, including **Narration**:, every persona-name prefix, and **Summary**:.",
+    "Every new narration, dialogue, or summary segment must start with a bold tag/prefix. Only **Summary**: lines are hidden from the chat; **Narration**: lines are shown as narration.",
     `Never write a User:, ${userName}:, <user>:, or any other user-prefixed line in the generated response. Do not speak, act, answer, decide, or continue the conversation on ${userName}'s behalf.`,
     userPronounInstruction,
-    "After all visible narration and persona dialogue for this turn, return exactly one **Summary**: line. The summary line is not dialogue or narration and must not repeat the visible reply verbatim.",
+    "After all visible narration and persona dialogue for this turn, you must write exactly one **Summary**: line. The summary line is required, not optional; it is not dialogue or narration and must not repeat the visible reply verbatim.",
     "The **Summary**: line must be a detailed standalone continuity memory that can replace older conversation messages. A future response should be possible using only this summary, the persona descriptions, and the next User: line or [state/action] line.",
     "Update the prior summary after this same turn. Carry forward every durable fact still needed for continuity: current location, who is present, what each person is doing or holding, visible images or objects that still matter, clothing or physical state if relevant, relationship dynamics, emotional state, promises, decisions, conflicts, consent, boundaries, unresolved questions, active plans, and why the current moment is happening.",
     "Then add the latest user message/action, persona dialogue, and narration from this turn with concrete cause and effect. Include enough detail that another model could continue the scene naturally without seeing the older transcript.",
@@ -1114,14 +1114,6 @@ function createTaggedSegmentStreamer({ res, turnId, personas = [], personaName =
     sendSse(res, "message", message);
   };
 
-  const emitNarration = (text) => {
-    const content = clean(text);
-    if (!content) return;
-    openSegment("narration");
-    appendCurrent(content);
-    closeCurrent();
-  };
-
   const appendCurrent = (text) => {
     if (!current || !text) return;
     if (current.type === "summary") {
@@ -1157,15 +1149,17 @@ function createTaggedSegmentStreamer({ res, turnId, personas = [], personaName =
       if (!current) {
         const prefix = findLinePrefix(buffer, personas);
         if (!prefix) {
-          if (!flush) return;
-          const text = buffer;
+          if (!flush) {
+            const holdLength = trailingLinePrefixCandidateLength(buffer, personas);
+            if (buffer.length <= holdLength) return;
+            buffer = buffer.slice(buffer.length - holdLength);
+            return;
+          }
           buffer = "";
-          emitNarration(text);
           return;
         }
 
         if (prefix.index > 0) {
-          emitNarration(buffer.slice(0, prefix.index));
           buffer = buffer.slice(prefix.index);
           continue;
         }
@@ -1179,14 +1173,6 @@ function createTaggedSegmentStreamer({ res, turnId, personas = [], personaName =
       if (nextPrefix) {
         appendCurrent(buffer.slice(0, nextPrefix.index).trimEnd());
         buffer = buffer.slice(nextPrefix.index);
-        closeCurrent();
-        continue;
-      }
-
-      const lineBreakIndex = buffer.indexOf("\n");
-      if (lineBreakIndex !== -1) {
-        appendCurrent(buffer.slice(0, lineBreakIndex).trimEnd());
-        buffer = buffer.slice(lineBreakIndex + 1);
         closeCurrent();
         continue;
       }
@@ -1311,6 +1297,7 @@ function trailingLinePrefixCandidateLength(value, personas = []) {
   const lastNewline = value.lastIndexOf("\n");
   const start = lastNewline === -1 ? 0 : lastNewline + 1;
   const suffix = value.slice(start);
+  if (!suffix && lastNewline !== -1) return 1;
   if (!suffix || suffix.includes(":")) return 0;
   const trimmed = suffix.trimStart().toLowerCase();
   if (!trimmed) return suffix.length;

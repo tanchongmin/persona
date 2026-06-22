@@ -98,48 +98,36 @@ test("persona prompt remembers prior consent and waits for user answers", () => 
   assert.match(prompt, /The addressed persona should respond or act as the target of that second-person wording/);
 });
 
-test("line parser keeps loose text as narration when prefixed output exists", () => {
+test("line parser attaches unprefixed text to the most recent prefix", () => {
   const messages = messagesFromTaggedSequence(
     "plain setup\n**Mara**: Hello there.\ntrailing note",
     "turn-plain",
     "Mara"
   );
 
-  assert.equal(messages.length, 3);
-  assert.equal(messages[0].role, "narrator");
-  assert.equal(messages[0].kind, "narration");
-  assert.equal(messages[0].content, "plain setup");
-  assert.equal(messages[1].role, "persona");
-  assert.equal(messages[1].content, "Hello there.");
-  assert.equal(messages[2].role, "narrator");
-  assert.equal(messages[2].kind, "narration");
-  assert.equal(messages[2].content, "trailing note");
+  assert.equal(messages.length, 1);
+  assert.equal(messages[0].role, "persona");
+  assert.equal(messages[0].content, "Hello there.\ntrailing note");
 });
 
-test("fully unprefixed model output is parsed as narration", () => {
+test("fully unprefixed model output is ignored", () => {
   const messages = messagesFromTaggedSequence(
     "plain setup with no prefixes",
     "turn-plain",
     "Mara"
   );
 
-  assert.equal(messages.length, 1);
-  assert.equal(messages[0].role, "narrator");
-  assert.equal(messages[0].kind, "narration");
-  assert.equal(messages[0].content, "plain setup with no prefixes");
+  assert.equal(messages.length, 0);
 });
 
-test("unbolded persona labels are parsed as narration while unbolded summary is hidden state", () => {
+test("unbolded persona labels are ignored while unbolded summary is hidden state", () => {
   const result = messagesAndSummaryFromTaggedSequence(
     "Mara: Hello there.\nSummary: John and Mara spoke.",
     "turn-unbolded-labels",
     "Mara"
   );
 
-  assert.equal(result.messages.length, 1);
-  assert.equal(result.messages[0].role, "narrator");
-  assert.equal(result.messages[0].kind, "narration");
-  assert.equal(result.messages[0].content, "Mara: Hello there.");
+  assert.equal(result.messages.length, 0);
   assert.equal(result.summary, "John and Mara spoke.");
 });
 
@@ -158,17 +146,29 @@ test("unbolded narration labels are repaired as narration", () => {
   assert.equal(messages[1].content, "I saw that.");
 });
 
-test("unknown model labels are parsed as narration", () => {
+test("unknown model labels are ignored until a recognized prefix appears", () => {
   const messages = messagesFromTaggedSequence(
     "System: The room goes quiet.\n**Mara**: I heard that.",
     "turn-unknown-label",
     "Mara"
   );
 
+  assert.equal(messages.length, 1);
+  assert.equal(messages[0].role, "persona");
+  assert.equal(messages[0].content, "I heard that.");
+});
+
+test("unknown labels continue the most recent recognized prefix", () => {
+  const messages = messagesFromTaggedSequence(
+    "Narration: The room goes quiet.\nSystem: Mara notices the hum.\n**Mara**: I heard that.",
+    "turn-unknown-label-after-prefix",
+    "Mara"
+  );
+
   assert.equal(messages.length, 2);
   assert.equal(messages[0].role, "narrator");
   assert.equal(messages[0].kind, "narration");
-  assert.equal(messages[0].content, "System: The room goes quiet.");
+  assert.equal(messages[0].content, "The room goes quiet.\nSystem: Mara notices the hum.");
   assert.equal(messages[1].role, "persona");
   assert.equal(messages[1].content, "I heard that.");
 });
@@ -231,9 +231,11 @@ test("persona prompt allows only relevant personas to respond", () => {
   assert.match(prompt, /Not every persona needs to respond/);
   assert.match(prompt, /\*\*Emma\*\*: spoken dialogue here/);
   assert.match(prompt, /\*\*Daniel\*\*: spoken dialogue here/);
-  assert.match(prompt, /If a model line does not start with \*\*Narration\*\*:, a bold available persona-name prefix, or a \*\*Summary\*\*: line, it will be treated as visible narration/);
+  assert.match(prompt, /Bold every output tag\/prefix, including \*\*Narration\*\*:, every persona-name prefix, and \*\*Summary\*\*:/);
+  assert.match(prompt, /Every new narration, dialogue, or summary segment must start with a bold tag\/prefix/);
   assert.match(prompt, /Only \*\*Summary\*\*: lines are hidden from the chat/);
-  assert.match(prompt, /unknown labels, and any other non-persona output are shown as narration/);
+  assert.doesNotMatch(prompt, /Narration:, bold available persona-name prefixes, \*\*Summary\*\*:, and Summary:/);
+  assert.doesNotMatch(prompt, /without bolding/);
   assert.match(prompt, /Never write a User:, John:, <user>:, or any other user-prefixed line in the generated response/);
   assert.match(prompt, /Do not speak, act, answer, decide, or continue the conversation on John's behalf/);
   assert.match(prompt, /User pronoun rule: In every User: line, "you", "your", and "yourself" are never John/);
@@ -299,7 +301,7 @@ test("streaming parser removes repeated speaker attribution after prefix", () =>
   assert.equal(result.messages[0].content, "Hi there.");
 });
 
-test("streaming parser keeps unprefixed text as narration", () => {
+test("streaming parser attaches unprefixed text to the most recent prefix", () => {
   const taggedRes = {
     write() {}
   };
@@ -313,13 +315,9 @@ test("streaming parser keeps unprefixed text as narration", () => {
   taggedStreamer.feed("**Mara**: Hello there.\ntrailing note");
   const taggedResult = taggedStreamer.finish();
 
-  assert.equal(taggedResult.messages.length, 3);
-  assert.equal(taggedResult.messages[0].role, "narrator");
-  assert.equal(taggedResult.messages[0].content, "plain setup");
-  assert.equal(taggedResult.messages[1].role, "persona");
-  assert.equal(taggedResult.messages[1].content, "Hello there.");
-  assert.equal(taggedResult.messages[2].role, "narrator");
-  assert.equal(taggedResult.messages[2].content, "trailing note");
+  assert.equal(taggedResult.messages.length, 1);
+  assert.equal(taggedResult.messages[0].role, "persona");
+  assert.equal(taggedResult.messages[0].content, "Hello there.\ntrailing note");
 
   const untaggedRes = {
     write() {}
@@ -334,10 +332,7 @@ test("streaming parser keeps unprefixed text as narration", () => {
   untaggedStreamer.feed("with no prefixes");
   const untaggedResult = untaggedStreamer.finish();
 
-  assert.equal(untaggedResult.messages.length, 1);
-  assert.equal(untaggedResult.messages[0].role, "narrator");
-  assert.equal(untaggedResult.messages[0].kind, "narration");
-  assert.equal(untaggedResult.messages[0].content, "plain setup with no prefixes");
+  assert.equal(untaggedResult.messages.length, 0);
 });
 
 test("streaming parser handles narration, dialogue, and summary prefixes", () => {
@@ -607,7 +602,8 @@ test("persona prompt requires summary in the same model response", () => {
     userMessage
   });
 
-  assert.match(prompt, /After all visible narration and persona dialogue for this turn, return exactly one \*\*Summary\*\*: line/);
+  assert.match(prompt, /After all visible narration and persona dialogue for this turn, you must write exactly one \*\*Summary\*\*: line/);
+  assert.match(prompt, /The summary line is required, not optional/);
   assert.match(prompt, /The \*\*Summary\*\*: line must be a detailed standalone continuity memory that can replace older conversation messages/);
   assert.match(prompt, /A future response should be possible using only this summary, the persona descriptions, and the next User: line or \[state\/action\] line/);
   assert.match(prompt, /Update the prior summary after this same turn/);
